@@ -1,0 +1,19 @@
+# Build
+FROM golang:1.19.3-alpine AS build
+
+WORKDIR /app
+COPY ./src/ ./
+RUN go mod download && go build -o /qonocloud ./main/main.go
+
+# Run
+FROM alpine
+
+WORKDIR /
+
+
+COPY --from=build /qonocloud /qonocloud
+
+EXPOSE 8000
+
+ENTRYPOINT ["/qonocloud"]
+#ENTRYPOINT [ "/bin/ash" ]

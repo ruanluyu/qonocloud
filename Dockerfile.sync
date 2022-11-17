@@ -1,0 +1,6 @@
+FROM golang:1.19.3-alpine AS build
+
+WORKDIR /app/src
+EXPOSE 8000
+
+ENTRYPOINT [ "/bin/ash" ]

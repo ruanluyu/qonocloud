@@ -52,3 +52,10 @@ func (this *RTTree)Add(route string, module IModule) error {
 	p.module = &module
 	return nil
 }
+
+func (this *RTTree)Run(route string, context ModuleContext) error{
+	routes := strings.Split(route, "/")
+	p := this.root
+	
+	return nil
+}

@@ -4,6 +4,6 @@ package server
 
 type IServer interface {
 	Init()
-	Run()
+	Serve()
 	Stop()
 }

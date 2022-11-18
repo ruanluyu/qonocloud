@@ -2,38 +2,119 @@ package server
 
 import (
 	"fmt"
+	"time"
 	"net/http"
+	"os"
+	"os/signal"
+	"context"
 )
 
-type Server struct {
+type ServerSettings struct{
 	Name   		string
 	Port   		int
 	IP     		string
 	IPVer  		string
-	Modules		RTTree
+	ReadTO		time.Duration
+	WriteTO		time.Duration
 }
 
-func (s *Server) Init() {
-	fmt.Printf("Server '%s' init", s.Name)
+type Server struct {
+	ServerSettings
+	modules		*RTTree
+	server		*http.Server
+	shutdownSig, terminatedSig	chan int
+
 }
 
-func handler(server *Server, writer http.ResponseWriter, req *http.Request) {
-	fmt.Fprint(writer, fmt.Sprintf("MiLai Cloud Server \nMethod: %s\nHost: %s\nURL: %s",
-		req.Method,
-		req.Host,
-		req.URL))
-	fmt.Printf("Request recieved:\n%s\n%s\n%s\n", req.Method, req.Host, req.URL)
+func (s *Server) Init() error{
+	s.modules = &(RTTree{})
+	s.modules.Init()
+	s.shutdownSig = make(chan int)
+	s.terminatedSig = make(chan int)
+	fmt.Printf("Server '%s' Inited. \n", s.Name)
+	return nil
+}
+
+func (s *Server) Add(route string, module IModule) error{
+	return s.modules.Add(route, module)
 }
 
 
-func (s *Server) Serve() {
-	addr := fmt.Sprintf("http://%s:%d/", s.IP, s.Port)
-	http.HandleFunc("/", func(writer http.ResponseWriter, req *http.Request){
-		handler(s, writer, req)
-	})
-	http.ListenAndServe(addr, nil)
+type _Handler struct{
+	s *Server
+}
+// implementation of http.Handler
+func (h _Handler)ServeHTTP(w http.ResponseWriter, r *http.Request){
+	h.s.modules.Run(r.URL.String(), &ModuleContext{r,w,nil})
 }
 
-func (s *Server) Stop() {
+
+
+func (s *Server) Serve() error {
+
+	addr := fmt.Sprintf("%s:%d", s.IP, s.Port)
+
+	// http.HandleFunc("/", )
+
+	s.server = &http.Server{
+		Addr: addr,
+		ReadTimeout: s.ReadTO,
+		ReadHeaderTimeout: s.ReadTO,
+		WriteTimeout: s.WriteTO,
+		Handler: _Handler{s},
+	}
+
+	ctx, cancel:= context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		sigint := make(chan os.Signal, 1)
+		signal.Notify(sigint, os.Interrupt)
+		for{
+			select {
+			case <-sigint:
+				fmt.Println("Interrupt signal. ")
+				s.shutdownSig <- 1
+				fmt.Println("Waiting for shutdown. ")
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	go func() {
+		for{
+			select {
+			case <-s.shutdownSig:
+				fmt.Println("Handling shutdown...")
+				if err := s.server.Shutdown(context.Background()); err != nil {
+					fmt.Printf("Server Shutdown Error: %v", err)
+				}else{
+					fmt.Println("Server shutdown successfully. \nGoodbye. :D ")
+				}
+				close(s.terminatedSig)
+				return
+			case <-ctx.Done():
+				fmt.Println("Closed inproperly. ")
+				return
+			default:
+				time.Sleep(1*time.Second)
+			}
+		}
+	}()
+
+	fmt.Printf("Listening at: %s\n", addr)
+	if err := s.server.ListenAndServe(); err != http.ErrServerClosed {
+		fmt.Printf("Server ListenAndServe Error: %v", err)
+	}
 	
+	<-s.terminatedSig
+	return nil
+}
+
+func (s *Server) Stop() error {
+	s.shutdownSig <- 1
+	<-s.terminatedSig
+	return nil
 }

@@ -5,9 +5,9 @@ import (
 )
 
 type ModuleContext struct{
-	output *http.ResponseWriter
-	input *http.Request
-	fallback func()
+	Request			*http.Request
+	Response		http.ResponseWriter
+	Fallback 		func()
 }
 
 type IModule interface {

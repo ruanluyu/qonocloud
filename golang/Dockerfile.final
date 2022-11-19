@@ -10,6 +10,7 @@ FROM alpine
 
 WORKDIR /
 
+ENV QONOCLOUD_PORT=8000
 
 COPY --from=build /qonocloud /qonocloud
 

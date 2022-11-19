@@ -1,0 +1,26 @@
+version: '3.9'
+
+services:
+  db:
+    container_name: qonocloud-db
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile
+    tty: true
+    platform: linux/x86_64
+    ports:
+      - 3306:3306
+    volumes:
+      -./mysql/database:/qonocloud/db
+    environment:
+      MYSQL_ROOT_PASSWORD: 000000
+
+  qonocloud:
+    container_name: qonocloud
+    build:
+      context: ./golang
+      dockerfile: Dockerfile.final
+    ports:
+      - 8000:8000
+    depends_on:
+      - db

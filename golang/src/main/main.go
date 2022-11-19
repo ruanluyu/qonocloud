@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"milai/qonocloud/server"
 	"time"
+	"os"
+	"strconv"
 )
 
 //"fmt"
@@ -35,9 +37,16 @@ func (m *MatchModule) Run(context *server.ModuleContext) error{
 
 func main() {
 	fmt.Println("Start...")
+
+	port, ok := strconv.Atoi(os.Getenv("QONOCLOUD_PORT"))
+	if ok != nil {
+		fmt.Printf("QONOCLOUD_PORT not found, will use default port: %d\n", defaultPort)
+		port = defaultPort
+	}
+
 	settings := server.ServerSettings{
 			Name: "Test server",
-			Port: defaultPort,
+			Port: port,
 			IP: "0.0.0.0",
 			ReadTO: 20 * time.Second,
 			WriteTO: 20 * time.Second,}
